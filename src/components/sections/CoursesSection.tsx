@@ -8,6 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import RegistrationModal from "@/components/RegistrationModal";
 
 const courses = [
   {
@@ -78,6 +79,8 @@ const CoursesSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState("");
 
   return (
     <section id="courses" className="py-24 bg-background" ref={ref}>
@@ -198,6 +201,10 @@ const CoursesSection = () => {
                 variant={course.popular ? "hero" : "heroOutline"}
                 className="w-full"
                 size="lg"
+                onClick={() => {
+                  setSelectedCourse(course.subtitle.toLowerCase().replace(" ", "").replace("-", ""));
+                  setIsModalOpen(true);
+                }}
               >
                 Đăng ký ngay
               </Button>
@@ -205,6 +212,12 @@ const CoursesSection = () => {
           ))}
         </div>
       </div>
+
+      <RegistrationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        preselectedCourse={selectedCourse}
+      />
     </section>
   );
 };
