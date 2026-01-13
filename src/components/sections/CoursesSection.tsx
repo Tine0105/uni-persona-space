@@ -1,8 +1,13 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Star, Clock, BookOpen } from "lucide-react";
+import { Check, Star, Clock, BookOpen, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const courses = [
   {
@@ -54,9 +59,25 @@ const courses = [
   },
 ];
 
+const classRules = [
+  {
+    number: 1,
+    content: "Gia sư xin nghỉ xin phép trước 1 ngày, học viên nghỉ học báo trước 4 tiếng nếu không tính một buổi.",
+  },
+  {
+    number: 2,
+    content: "Xin nghỉ quá 40% buổi học xin hoàn lại 20% tiền học và ngưng lớp.",
+  },
+  {
+    number: 3,
+    content: "Học viên trước khi học xem trước bài, sau khi học ôn tập và làm bài tập để bắt đầu buổi học mới.",
+  },
+];
+
 const CoursesSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   return (
     <section id="courses" className="py-24 bg-background" ref={ref}>
@@ -73,9 +94,49 @@ const CoursesSection = () => {
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
             Chọn khóa học <span className="text-gradient">phù hợp</span> với bạn
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Các khóa học được thiết kế theo cấp độ HSK chuẩn quốc tế, phù hợp với mọi nhu cầu học tập
           </p>
+
+          {/* Class Rules Collapsible */}
+          <Collapsible
+            open={isRulesOpen}
+            onOpenChange={setIsRulesOpen}
+            className="max-w-2xl mx-auto"
+          >
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="heroOutline"
+                className="w-full md:w-auto gap-2"
+              >
+                <AlertCircle size={18} />
+                Quy định lớp học
+                {isRulesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-card border border-border rounded-2xl p-6 text-left shadow-medium"
+              >
+                <h4 className="font-display text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <AlertCircle className="text-primary" size={20} />
+                  Yêu cầu lớp học và gia sư
+                </h4>
+                <ul className="space-y-4">
+                  {classRules.map((rule) => (
+                    <li key={rule.number} className="flex gap-3">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-sm">
+                        {rule.number}
+                      </span>
+                      <p className="text-muted-foreground leading-relaxed">{rule.content}</p>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </CollapsibleContent>
+          </Collapsible>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
