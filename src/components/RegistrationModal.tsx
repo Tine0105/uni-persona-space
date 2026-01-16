@@ -16,9 +16,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-const REGISTRATION_ENDPOINT = `${API_BASE_URL}/api/registrations`;
+// Google Sheets API URL
+const GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbyNQn3orjZNTf_C3YJb4QXXRqmfOr9C_eR8JSuzrmhoB5C-M5ZvpdTKUPlXfWwAnryazg/exec";
 
 // Memoized constant arrays - prevent recreation on render
 const COURSES = [
@@ -133,29 +132,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     course: preselectedCourse || "",
   });
 
-  // TODO: Replace with your actual Google Form URL after creating it
-  // Format: https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse
-  const GOOGLE_FORM_URL: string = "";
-  
-  // TODO: Map these to your Google Form entry IDs
-  // Find entry IDs by inspecting your Google Form's HTML
-  const FORM_FIELDS: Record<string, string> = {
-    name: "entry.XXXXXXXXXX",
-    phone: "entry.XXXXXXXXXX",
-    age: "entry.XXXXXXXXXX",
-    socialLink: "entry.XXXXXXXXXX",
-    currentLevel: "entry.XXXXXXXXXX",
-    specificLevel: "entry.XXXXXXXXXX",
-    purposes: "entry.XXXXXXXXXX",
-    skills: "entry.XXXXXXXXXX",
-    goals: "entry.XXXXXXXXXX",
-    learningFormats: "entry.XXXXXXXXXX",
-    sessionsPerWeek: "entry.XXXXXXXXXX",
-    previousExperience: "entry.XXXXXXXXXX",
-    source: "entry.XXXXXXXXXX",
-    additionalQuestions: "entry.XXXXXXXXXX",
-    course: "entry.XXXXXXXXXX",
-  };
 
   useEffect(() => {
     if (preselectedCourse) {
@@ -221,59 +197,65 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Prepare data to send to backend
+      // Prepare data to send to Google Sheets
       const dataToSend = {
-        ...formData,
-        // Ensure email field exists (use phone as fallback for now)
-        email: formData.phone,
+        name: formData.name,
+        phone: formData.phone,
+        age: formData.age,
+        socialLink: formData.socialLink,
+        course: formData.course,
+        currentLevel: formData.currentLevel,
+        specificLevel: formData.specificLevel,
+        purposes: formData.purposes,
+        otherPurpose: formData.otherPurpose,
+        skills: formData.skills,
+        goals: formData.goals,
+        learningFormats: formData.learningFormats,
+        sessionsPerWeek: formData.sessionsPerWeek,
+        previousExperience: formData.previousExperience,
+        source: formData.source,
+        otherSource: formData.otherSource,
+        additionalQuestions: formData.additionalQuestions,
       };
 
-      // Send to backend API
-      const response = await fetch(REGISTRATION_ENDPOINT, {
+      // Send to Google Sheets via Apps Script
+      const response = await fetch(GOOGLE_SHEETS_URL, {
         method: "POST",
+        mode: "no-cors", // Required for Google Apps Script
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(dataToSend),
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
+      // With no-cors mode, we can't read the response, so we assume success
+      setIsSuccess(true);
+      toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ bạn sớm.");
 
-      const result = await response.json();
-
-      if (result.success) {
-        setIsSuccess(true);
-        toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ bạn sớm.");
-
-        setTimeout(() => {
-          setIsSuccess(false);
-          setCurrentStep(1);
-          setFormData({
-            name: "",
-            phone: "",
-            age: "",
-            socialLink: "",
-            currentLevel: "",
-            specificLevel: "",
-            purposes: [],
-            otherPurpose: "",
-            skills: [],
-            goals: "",
-            learningFormats: [],
-            sessionsPerWeek: "",
-            previousExperience: "",
-            source: "",
-            otherSource: "",
-            additionalQuestions: "",
-            course: "",
-          });
-          onClose();
-        }, 2000);
-      } else {
-        throw new Error(result.error || "Unknown error");
-      }
+      setTimeout(() => {
+        setIsSuccess(false);
+        setCurrentStep(1);
+        setFormData({
+          name: "",
+          phone: "",
+          age: "",
+          socialLink: "",
+          currentLevel: "",
+          specificLevel: "",
+          purposes: [],
+          otherPurpose: "",
+          skills: [],
+          goals: "",
+          learningFormats: [],
+          sessionsPerWeek: "",
+          previousExperience: "",
+          source: "",
+          otherSource: "",
+          additionalQuestions: "",
+          course: "",
+        });
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error("Form submission error:", error);
       toast.error("Có lỗi xảy ra. Vui lòng thử lại!");
