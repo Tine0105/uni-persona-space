@@ -19,7 +19,7 @@ const RegistrationDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterColumn, setFilterColumn] = useState("Name");
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbyNQn3orjZNTf_C3YJb4QXXRqmfOr9C_eR8JSuzrmhoB5C-M5ZvpdTKUPlXfWwAnryazg/exec";
 
   // Fetch registrations
   const fetchRegistrations = async () => {
