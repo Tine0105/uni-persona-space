@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle, Loader2, GraduationCap } from "lucide-react";
+import { X, CheckCircle, Loader2, GraduationCap, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,13 +16,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-interface RegistrationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  preselectedCourse?: string;
-}
+// API Configuration
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const REGISTRATION_ENDPOINT = `${API_BASE_URL}/api/registrations`;
 
-const courses = [
+// Memoized constant arrays - prevent recreation on render
+const COURSES = [
   "HSK 1 - Sơ cấp 1",
   "HSK 2 - Sơ cấp 2",
   "HSK 3 - Trung cấp 1",
@@ -33,7 +32,7 @@ const courses = [
   "Luyện thi HSKK",
 ];
 
-const purposeOptions = [
+const PURPOSE_OPTIONS = [
   { id: "travel", label: "Giao tiếp cơ bản (đi du lịch, mua bán)" },
   { id: "work", label: "Phục vụ công việc (đàm phán, làm việc với đối tác)" },
   { id: "exam", label: "Ôn thi chứng chỉ HSK-HSKK" },
@@ -41,33 +40,39 @@ const purposeOptions = [
   { id: "culture", label: "Yêu thích văn hóa, phim ảnh, âm nhạc Trung Quốc" },
 ];
 
-const skillOptions = [
+const SKILL_OPTIONS = [
   { id: "speaking", label: "Nghe - Nói (phản xạ giao tiếp)" },
   { id: "writing", label: "Đọc - Viết (chữ Hán)" },
   { id: "grammar", label: "Ngữ pháp (để thi cử)" },
   { id: "all", label: "Tổng hợp và cân bằng tất cả" },
 ];
 
-const learningFormatOptions = [
+const LEARNING_FORMAT_OPTIONS = [
   { id: "1on1", label: "Học 1 kèm 1 (hiệu quả cao, linh hoạt thời gian)" },
   { id: "group", label: "Học nhóm nhỏ (2-5 bạn, tương tác tốt, tiết kiệm chi phí)" },
   { id: "online", label: "Học lớp online qua Zoom/Meet" },
   { id: "offline", label: "Học trực tiếp" },
 ];
 
-const sessionsOptions = [
+const SESSIONS_OPTIONS = [
   { id: "2", label: "2 buổi/tuần" },
   { id: "3", label: "3 buổi/tuần" },
   { id: "more", label: "> 3 buổi/tuần" },
   { id: "flexible", label: "Linh hoạt theo lịch cá nhân" },
 ];
 
-const sourceOptions = [
+const SOURCE_OPTIONS = [
   { id: "facebook", label: "Facebook" },
   { id: "tiktok", label: "TikTok/YouTube" },
   { id: "friend", label: "Giới thiệu từ bạn bè/học viên cũ" },
   { id: "google", label: "Tìm kiếm Google" },
 ];
+
+interface RegistrationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  preselectedCourse?: string;
+}
 
 interface FormData {
   // Part 1: Personal Info
@@ -158,20 +163,22 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   }, [preselectedCourse]);
 
-  const handleChange = (field: keyof FormData, value: string | string[]) => {
+  // Memoized callback to prevent unnecessary re-renders
+  const handleChange = useCallback((field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleCheckboxChange = (field: 'purposes' | 'skills' | 'learningFormats', value: string, checked: boolean) => {
+  // Memoized callback for checkbox changes
+  const handleCheckboxChange = useCallback((field: 'purposes' | 'skills' | 'learningFormats', value: string, checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
       [field]: checked 
         ? [...prev[field], value]
         : prev[field].filter((item) => item !== value),
     }));
-  };
+  }, []);
 
-  const validateStep = (step: number): boolean => {
+  const validateStep = useCallback((step: number): boolean => {
     switch (step) {
       case 1:
         if (!formData.name || !formData.phone || !formData.age || !formData.socialLink) {
@@ -194,19 +201,19 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       default:
         return true;
     }
-  };
+  }, [formData]);
 
-  const nextStep = () => {
+  const nextStep = useCallback(() => {
     if (validateStep(currentStep)) {
       setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
     }
-  };
+  }, [currentStep, validateStep]);
 
-  const prevStep = () => {
+  const prevStep = useCallback(() => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateStep(currentStep)) return;
@@ -214,70 +221,68 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // If Google Form URL is configured, submit to Google Form
-      if (GOOGLE_FORM_URL && GOOGLE_FORM_URL.length > 0) {
-        const formBody = new URLSearchParams();
-        formBody.append(FORM_FIELDS.name, formData.name);
-        formBody.append(FORM_FIELDS.phone, formData.phone);
-        formBody.append(FORM_FIELDS.age, formData.age);
-        formBody.append(FORM_FIELDS.socialLink, formData.socialLink);
-        formBody.append(FORM_FIELDS.currentLevel, formData.currentLevel === "zero" ? "Chưa biết gì" : formData.specificLevel);
-        formBody.append(FORM_FIELDS.purposes, [...formData.purposes, formData.otherPurpose].filter(Boolean).join(", "));
-        formBody.append(FORM_FIELDS.skills, formData.skills.join(", "));
-        formBody.append(FORM_FIELDS.goals, formData.goals);
-        formBody.append(FORM_FIELDS.learningFormats, formData.learningFormats.join(", "));
-        formBody.append(FORM_FIELDS.sessionsPerWeek, formData.sessionsPerWeek);
-        formBody.append(FORM_FIELDS.previousExperience, formData.previousExperience);
-        formBody.append(FORM_FIELDS.source, formData.source === "other" ? formData.otherSource : formData.source);
-        formBody.append(FORM_FIELDS.additionalQuestions, formData.additionalQuestions);
-        formBody.append(FORM_FIELDS.course, formData.course);
+      // Prepare data to send to backend
+      const dataToSend = {
+        ...formData,
+        // Ensure email field exists (use phone as fallback for now)
+        email: formData.phone,
+      };
 
-        await fetch(GOOGLE_FORM_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formBody.toString(),
-        });
+      // Send to backend API
+      const response = await fetch(REGISTRATION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
       }
 
-      setIsSuccess(true);
-      toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ bạn sớm.");
+      const result = await response.json();
 
-      setTimeout(() => {
-        setIsSuccess(false);
-        setCurrentStep(1);
-        setFormData({
-          name: "",
-          phone: "",
-          age: "",
-          socialLink: "",
-          currentLevel: "",
-          specificLevel: "",
-          purposes: [],
-          otherPurpose: "",
-          skills: [],
-          goals: "",
-          learningFormats: [],
-          sessionsPerWeek: "",
-          previousExperience: "",
-          source: "",
-          otherSource: "",
-          additionalQuestions: "",
-          course: "",
-        });
-        onClose();
-      }, 2000);
+      if (result.success) {
+        setIsSuccess(true);
+        toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ bạn sớm.");
+
+        setTimeout(() => {
+          setIsSuccess(false);
+          setCurrentStep(1);
+          setFormData({
+            name: "",
+            phone: "",
+            age: "",
+            socialLink: "",
+            currentLevel: "",
+            specificLevel: "",
+            purposes: [],
+            otherPurpose: "",
+            skills: [],
+            goals: "",
+            learningFormats: [],
+            sessionsPerWeek: "",
+            previousExperience: "",
+            source: "",
+            otherSource: "",
+            additionalQuestions: "",
+            course: "",
+          });
+          onClose();
+        }, 2000);
+      } else {
+        throw new Error(result.error || "Unknown error");
+      }
     } catch (error) {
       console.error("Form submission error:", error);
       toast.error("Có lỗi xảy ra. Vui lòng thử lại!");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [formData, currentStep, validateStep, onClose]);
 
-  const renderStepIndicator = () => (
+  const renderStepIndicator = useMemo(() => (
     <div className="flex items-center justify-center gap-2 mb-6">
       {[1, 2, 3, 4].map((step) => (
         <React.Fragment key={step}>
@@ -302,9 +307,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         </React.Fragment>
       ))}
     </div>
-  );
+  ), [currentStep]);
 
-  const renderStep1 = () => (
+  const renderStep1 = useMemo(() => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-foreground mb-4">
         Phần 1: Thông Tin Cá Nhân
@@ -376,7 +381,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <SelectValue placeholder="Chọn khóa học" />
           </SelectTrigger>
           <SelectContent>
-            {courses.map((course) => (
+            {COURSES.map((course) => (
               <SelectItem key={course} value={course}>
                 {course}
               </SelectItem>
@@ -385,9 +390,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         </Select>
       </div>
     </div>
-  );
+  ), [formData.name, formData.phone, formData.age, formData.socialLink, formData.course, handleChange]);
 
-  const renderStep2 = () => (
+  const renderStep2 = useMemo(() => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-foreground mb-4">
         Phần 2: Thông Tin Học Tập & Mục Tiêu
@@ -430,7 +435,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           <span className="text-muted-foreground text-sm ml-1">(Có thể chọn nhiều)</span>
         </Label>
         <div className="space-y-2">
-          {purposeOptions.map((option) => (
+          {PURPOSE_OPTIONS.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               <Checkbox
                 id={`purpose-${option.id}`}
@@ -472,7 +477,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           Kỹ năng muốn cải thiện nhất <span className="text-destructive">*</span>
         </Label>
         <div className="space-y-2">
-          {skillOptions.map((option) => (
+          {SKILL_OPTIONS.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               <Checkbox
                 id={`skill-${option.id}`}
@@ -503,9 +508,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         />
       </div>
     </div>
-  );
+  ), [formData.currentLevel, formData.specificLevel, formData.purposes, formData.otherPurpose, formData.skills, formData.goals, handleChange, handleCheckboxChange]);
 
-  const renderStep3 = () => (
+  const renderStep3 = useMemo(() => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-foreground mb-4">
         Phần 3: Thông Tin Lớp Học Mong Muốn
@@ -517,7 +522,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           <span className="text-muted-foreground text-sm ml-1">(Có thể chọn nhiều)</span>
         </Label>
         <div className="space-y-2">
-          {learningFormatOptions.map((option) => (
+          {LEARNING_FORMAT_OPTIONS.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               <Checkbox
                 id={`format-${option.id}`}
@@ -542,7 +547,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           value={formData.sessionsPerWeek}
           onValueChange={(value) => handleChange("sessionsPerWeek", value)}
         >
-          {sessionsOptions.map((option) => (
+          {SESSIONS_OPTIONS.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               <RadioGroupItem value={option.id} id={`sessions-${option.id}`} />
               <Label htmlFor={`sessions-${option.id}`} className="font-normal cursor-pointer">
@@ -553,9 +558,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         </RadioGroup>
       </div>
     </div>
-  );
+  ), [formData.learningFormats, formData.sessionsPerWeek, handleChange, handleCheckboxChange]);
 
-  const renderStep4 = () => (
+  const renderStep4 = useMemo(() => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-foreground mb-4">
         Phần 4: Câu Hỏi Mở & Tìm Hiểu Thêm
@@ -581,7 +586,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           value={formData.source}
           onValueChange={(value) => handleChange("source", value)}
         >
-          {sourceOptions.map((option) => (
+          {SOURCE_OPTIONS.map((option) => (
             <div key={option.id} className="flex items-center space-x-2">
               <RadioGroupItem value={option.id} id={`source-${option.id}`} />
               <Label htmlFor={`source-${option.id}`} className="font-normal cursor-pointer">
@@ -620,7 +625,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         />
       </div>
     </div>
-  );
+  ), [formData.previousExperience, formData.source, formData.otherSource, formData.additionalQuestions, handleChange]);
 
   return (
     <AnimatePresence>
@@ -629,6 +634,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
           onClick={onClose}
         >
@@ -636,7 +642,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             className="bg-card border border-border rounded-2xl shadow-strong w-full max-w-2xl max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
@@ -663,7 +669,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               <AnimatePresence mode="wait">
                 {isSuccess ? (
@@ -696,7 +701,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    {renderStepIndicator()}
+                    {renderStepIndicator}
                     
                     <form onSubmit={handleSubmit}>
                       <AnimatePresence mode="wait">
@@ -705,12 +710,12 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -20 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15 }}
                         >
-                          {currentStep === 1 && renderStep1()}
-                          {currentStep === 2 && renderStep2()}
-                          {currentStep === 3 && renderStep3()}
-                          {currentStep === 4 && renderStep4()}
+                          {currentStep === 1 && renderStep1}
+                          {currentStep === 2 && renderStep2}
+                          {currentStep === 3 && renderStep3}
+                          {currentStep === 4 && renderStep4}
                         </motion.div>
                       </AnimatePresence>
 
